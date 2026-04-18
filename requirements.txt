@@ -1,0 +1,11 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# Required by starlette.testclient.TestClient (used in tests)
+httpx==0.28.1
+anyio==4.7.0
+
+# Testing
+pytest==8.3.4

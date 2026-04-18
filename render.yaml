@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pso-review-service
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: API_KEY
+        generateValue: true
+      - key: LOG_LEVEL
+        value: INFO
