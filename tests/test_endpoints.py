@@ -14,12 +14,12 @@ def test_health_ok(client: TestClient) -> None:
 _REVIEW_BODY = {"document_url": "https://example.com/doc.docx", "session_id": "abc123"}
 
 
-def test_review_ok(client: TestClient, auth_headers: dict) -> None:
+def test_review_ok(client: TestClient, auth_headers: dict, mock_parse_document) -> None:
     r = client.post("/review", json=_REVIEW_BODY, headers=auth_headers)
     assert r.status_code == 200
     data = r.json()
     assert data["session_id"] == "abc123"
-    assert "document_overview" in data
+    assert data["document_overview"]["length_words"] == 42
     assert "category_results" in data
     assert len(data["category_results"]) == 10
     assert "priority_changes" in data

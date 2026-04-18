@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from app.auth import verify_api_key
@@ -10,6 +11,7 @@ from app.models.responses import (
     ReviewMetadata,
     ReviewResponse,
 )
+from app.services.document_parser import parse_document
 
 router = APIRouter()
 
@@ -145,12 +147,16 @@ async def review(
     body: ReviewRequest,
     _: str = Depends(verify_api_key),
 ) -> ReviewResponse:
+    start = time.monotonic()
+    parsed = await parse_document(body.document_url)
+    latency_ms = int((time.monotonic() - start) * 1000)
+
     return ReviewResponse(
         session_id=body.session_id,
         document_overview=DocumentOverview(
             document_type="Policy document",
             audience="VET sector workforce and training organisations",
-            length_words=1240,
+            length_words=parsed.word_count,
             strengths=[
                 "Clear section headings that aid navigation",
                 "Consistent use of active voice in most sections",
@@ -166,7 +172,7 @@ async def review(
         metadata=ReviewMetadata(
             model_used="hardcoded-stub",
             tokens_total=0,
-            latency_ms=0,
+            latency_ms=latency_ms,
             processed_at=datetime.now(timezone.utc).isoformat(),
         ),
     )
