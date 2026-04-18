@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.models.responses import ErrorResponse
-from app.routes import chat, health, review
+from app.routes import chat, health, review, upload
 
 
 class _JSONFormatter(logging.Formatter):
@@ -53,6 +53,7 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(review.router)
+app.include_router(upload.router)
 app.include_router(chat.router)
 
 

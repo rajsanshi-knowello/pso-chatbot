@@ -39,9 +39,14 @@ uvicorn app.main:app --reload
 pytest tests/ -v
 ```
 
-Expected output — all 7 tests pass:
+Expected output — all 18 tests pass:
 
 ```
+tests/test_document_parser.py::test_parse_docx       PASSED
+tests/test_document_parser.py::test_parse_pdf        PASSED
+tests/test_document_parser.py::test_reject_oversized PASSED
+tests/test_document_parser.py::test_url_404          PASSED
+tests/test_document_parser.py::test_unsupported_type PASSED
 tests/test_endpoints.py::test_health_ok              PASSED
 tests/test_endpoints.py::test_review_ok              PASSED
 tests/test_endpoints.py::test_review_no_auth         PASSED
@@ -49,6 +54,12 @@ tests/test_endpoints.py::test_review_invalid_body    PASSED
 tests/test_endpoints.py::test_chat_ok                PASSED
 tests/test_endpoints.py::test_chat_no_auth           PASSED
 tests/test_endpoints.py::test_chat_invalid_body      PASSED
+tests/test_upload.py::test_upload_docx_ok            PASSED
+tests/test_upload.py::test_upload_pdf_ok             PASSED
+tests/test_upload.py::test_upload_missing_file       PASSED
+tests/test_upload.py::test_upload_unsupported_type   PASSED
+tests/test_upload.py::test_upload_oversized          PASSED
+tests/test_upload.py::test_upload_no_auth            PASSED
 ```
 
 ---
@@ -112,6 +123,37 @@ curl -s -X POST http://localhost:8000/chat \
   -d '{"message": "What should I fix first?", "session_id": "abc123"}' \
   | python -m json.tool
 ```
+
+### POST /review/upload (multipart — for n8n binary uploads)
+
+**Linux/Mac:**
+```bash
+curl -s -X POST http://localhost:8000/review/upload \
+  -H "X-API-Key: supersecretlocalkey" \
+  -F "file=@/path/to/your/document.docx" \
+  -F "session_id=abc123" \
+  | python -m json.tool
+```
+
+**Windows PowerShell:**
+```powershell
+curl.exe -s -X POST http://localhost:8000/review/upload `
+  -H "X-API-Key: supersecretlocalkey" `
+  -F "file=@C:\path\to\document.docx" `
+  -F "session_id=abc123"
+```
+
+**n8n HTTP Request node (multipart):**
+
+| Field | Value |
+|---|---|
+| Method | POST |
+| URL | `https://<your-render-url>/review/upload` |
+| Authentication | Header Auth → `X-API-Key` |
+| Body content type | Form-Data/Multipart |
+| Fields | `file` = Binary input, `session_id` = `{{ $json.session_id }}` |
+
+---
 
 ### 401 — missing API key
 ```bash

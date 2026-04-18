@@ -20,8 +20,8 @@ class ParsedDocument(BaseModel):
     has_tables: bool
 
 
-def _detect_file_type(url: str, content_type: str) -> Literal["docx", "pdf"]:
-    lower = url.lower().split("?")[0]
+def detect_file_type(name: str, content_type: str) -> Literal["docx", "pdf"]:
+    lower = name.lower().split("?")[0]
     if lower.endswith(".docx"):
         return "docx"
     if lower.endswith(".pdf"):
@@ -109,7 +109,25 @@ async def parse_document(url: str) -> ParsedDocument:
     if len(content) > _MAX_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
 
-    file_type = _detect_file_type(url, response.headers.get("content-type", ""))
+    file_type = detect_file_type(url, response.headers.get("content-type", ""))
+
+    with tempfile.NamedTemporaryFile(suffix=f".{file_type}", delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        if file_type == "docx":
+            return _parse_docx(tmp_path)
+        return _parse_pdf(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+
+def parse_document_bytes(content: bytes, filename: str, content_type: str) -> ParsedDocument:
+    if len(content) > _MAX_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+
+    file_type = detect_file_type(filename, content_type)
 
     with tempfile.NamedTemporaryFile(suffix=f".{file_type}", delete=False) as tmp:
         tmp.write(content)
