@@ -160,7 +160,7 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
             "category_id": 10,
             "category_name": "Structure and Document Conventions",
         }
-        output = reviewer_graph.invoke(state)
+        output = await reviewer_graph.ainvoke(state)
         findings_by_category[10] = output.get("findings", [])
         llm_tokens = output.get("tokens_used", 0)
         category_10_latency = output.get("category_latency_ms", {}).get(10, 0)
