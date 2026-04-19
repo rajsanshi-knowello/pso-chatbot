@@ -76,12 +76,17 @@ Provide your assessment as JSON."""
 
         latency_ms = int((time.monotonic() - start_time) * 1000)
 
+        # Extract token count (may not be available in all response modes)
+        tokens = 0
+        if hasattr(response, "usage") and response.usage:
+            tokens = response.usage.total_token_count
+
         return {
             "findings": findings,
             "compliant": compliant,
             "severity": severity,
             "model_used": "gemini-2.5-flash",
-            "tokens_used": response.usage.total_token_count,
+            "tokens_used": tokens,
             "category_latency_ms": {10: latency_ms},
         }
 
