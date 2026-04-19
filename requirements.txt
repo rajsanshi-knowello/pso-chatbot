@@ -14,7 +14,7 @@ anyio==4.7.0
 
 # LLM and agentic workflows
 langgraph==0.1.17
-langchain-core==0.1.50
+langchain-core==0.2.22
 google-generativeai==0.3.2
 
 # Testing
