@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, START, END
 
 from app.agents.state import ReviewState
 from app.agents.nodes.factory import create_category_node
+from app.agents.nodes.priority_aggregator import aggregate_priority
 
 
 
@@ -32,7 +33,7 @@ def build_review_graph():
     """Build LangGraph for parallel 10-category analysis.
 
     Structure:
-        START → [10 category nodes in parallel] → aggregate → END
+        START → [10 category nodes in parallel] → aggregate → priority_aggregator → END
     """
     graph = StateGraph(ReviewState)
 
@@ -41,15 +42,19 @@ def build_review_graph():
         node_name = f"category_{cat_id:02d}"
         node_func = create_category_node(cat_id, cat_name, prompt_file)
         graph.add_node(node_name, node_func)
-        # All nodes connect to aggregation for fan-in
+        # All nodes fan-in to aggregate
         graph.add_edge(node_name, "aggregate")
 
     # Add router from START that sends to all category nodes in parallel
     graph.add_conditional_edges(START, _router_to_categories)
 
-    # Aggregation node: collect results from all 10 categories
+    # Aggregate: compute totals from parallel category results
     graph.add_node("aggregate", _aggregate_findings)
-    graph.add_edge("aggregate", END)
+    graph.add_edge("aggregate", "priority_aggregator")
+
+    # Priority aggregator: one LLM call to synthesise findings → priority changes + summary
+    graph.add_node("priority_aggregator", aggregate_priority)
+    graph.add_edge("priority_aggregator", END)
 
     return graph.compile()
 

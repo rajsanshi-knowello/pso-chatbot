@@ -22,3 +22,10 @@ class ReviewState(TypedDict, total=False):
     total_latency_ms: int
     processed_at: str
 
+    # Aggregator outputs (set by priority_aggregator node)
+    aggregated_priority_changes: list[dict]  # [{"rank": 1, "category_id": 5, "description": "..."}]
+    aggregated_summary: str
+    aggregated_strengths: list[str]
+    aggregator_tokens: int
+    aggregator_latency_ms: int
+

@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -43,8 +42,6 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
     4. Use LLM-only findings for categories 3, 4, 8, 9, 10
     5. Build response with real findings from both sources
     """
-    start_time = asyncio.get_event_loop().time()
-
     # Step 1: Run pre-checks (Categories 1, 2, 5, 6, 7)
     logger.info("Running pre-checks for Categories 1, 2, 5, 6, 7")
     runner = CheckRunner()
@@ -114,6 +111,7 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
     # Step 4: Collect metadata
     total_tokens = graph_output.get("total_tokens", 0)
     total_llm_latency = graph_output.get("total_latency_ms", 0)
+    aggregator_tokens = graph_output.get("aggregator_tokens", 0)
 
     # Build per-category metadata
     tokens_by_category = {}
@@ -128,9 +126,29 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
             latency_by_category[str(category_id)] = meta.get("latency_ms", 0)
             category_status[str(category_id)] = meta.get("status", "unknown")
 
-    # Build response
-    end_time = asyncio.get_event_loop().time()
-    total_time_ms = int((end_time - start_time) * 1000)
+    # Step 5: Extract aggregator output (with mechanical fallback)
+    raw_priority_changes = graph_output.get("aggregated_priority_changes", [])
+    if raw_priority_changes:
+        priority_changes = [
+            PriorityChange(
+                rank=item["rank"],
+                category_id=item["category_id"],
+                description=item["description"],
+            )
+            for item in raw_priority_changes
+        ]
+    else:
+        priority_changes = _build_priority_changes(category_results)
+
+    overall_summary = graph_output.get("aggregated_summary", "")
+
+    aggregator_strengths = graph_output.get("aggregated_strengths", [])
+    if not aggregator_strengths:
+        # Fallback: list compliant categories as strengths
+        compliant_cats = [c.category_name for c in category_results if c.compliant]
+        aggregator_strengths = [
+            f"No issues found in {name}." for name in compliant_cats[:3]
+        ] or ["Document reviewed successfully."]
 
     return ReviewResponse(
         session_id=session_id,
@@ -138,21 +156,18 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
             document_type="Policy document",
             audience="VET sector workforce and training organisations",
             length_words=parsed.word_count,
-            strengths=[
-                "Clear section headings that aid navigation",
-                "Consistent use of active voice in most sections",
-                "Referencing style is complete and well-formatted",
-            ],
+            strengths=aggregator_strengths,
         ),
         category_results=category_results,
-        priority_changes=_build_priority_changes(category_results),
+        priority_changes=priority_changes,
+        overall_summary=overall_summary,
         next_steps=(
             "Address the high-severity findings first, then resolve lower-priority issues "
             "before the next review cycle."
         ),
         metadata=ReviewMetadata(
             model_used="gemini-2.5-flash + pre-checks",
-            tokens_total=total_tokens,
+            tokens_total=total_tokens + aggregator_tokens,
             latency_ms=total_llm_latency,
             processed_at=datetime.now(timezone.utc).isoformat(),
             tokens_by_category=tokens_by_category,

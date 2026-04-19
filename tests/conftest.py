@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 # Must be set before app is imported so pydantic-settings picks it up
 os.environ.setdefault("API_KEY", "test-key")
+os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
 
 from app.main import app  # noqa: E402
 from app.services.document_parser import ParsedDocument  # noqa: E402

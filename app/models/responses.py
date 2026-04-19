@@ -58,5 +58,6 @@ class ReviewResponse(BaseModel):
     document_overview: DocumentOverview
     category_results: list[CategoryResult]
     priority_changes: list[PriorityChange]
+    overall_summary: str = ""
     next_steps: str
     metadata: ReviewMetadata
