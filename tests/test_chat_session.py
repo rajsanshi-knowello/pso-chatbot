@@ -1,6 +1,5 @@
 """Tests for /chat endpoint, session store, and chat_graph."""
 import time
-import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from contextlib import contextmanager
@@ -47,7 +46,7 @@ def _make_review_response(session_id: str = "s1") -> ReviewResponse:
         overall_summary="The document is mostly compliant with minor punctuation issues.",
         next_steps="Fix punctuation.",
         metadata=ReviewMetadata(
-            model_used="gemini-2.5-flash",
+            model_used="gpt-4.1-mini",
             tokens_total=1500,
             latency_ms=3000,
             processed_at="2026-04-19T00:00:00+00:00",
@@ -56,14 +55,17 @@ def _make_review_response(session_id: str = "s1") -> ReviewResponse:
 
 
 @contextmanager
-def mock_chat_gemini(reply_text: str, tokens: int = 100):
+def mock_chat_openai(reply_text: str, tokens: int = 100):
+    """Patch openai.AsyncOpenAI inside chat_graph to return a canned reply."""
     mock_response = MagicMock()
-    mock_response.text = reply_text
-    mock_response.usage_metadata.total_token_count = tokens
+    mock_response.choices[0].message.content = reply_text
+    mock_response.usage.total_tokens = tokens
 
-    with patch("app.agents.chat_graph.genai.Client") as mock_client_class:
+    with patch("app.agents.chat_graph.openai.AsyncOpenAI") as mock_client_class:
         mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = mock_response
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_class.return_value = mock_client
         yield mock_client
 
@@ -115,17 +117,16 @@ def test_session_store_caps_history_at_20():
 def test_session_store_evicts_expired_session():
     store = SessionStore()
     session = store.get_or_create("abc")
-    session.last_active = time.time() - 7201  # expired 1 second past TTL
-    # Accessing the session should evict and recreate it
+    session.last_active = time.time() - 7201
     fresh = store.get_or_create("abc")
-    assert fresh.document_text is None  # fresh session, no prior data
+    assert fresh.document_text is None
 
 
 def test_session_store_does_not_evict_active_session():
     store = SessionStore()
     store.store_review("abc", document_text="doc", document_context="ctx")
     session = store.get_or_create("abc")
-    session.last_active = time.time() - 3600  # 1 hour ago — still within TTL
+    session.last_active = time.time() - 3600  # 1 hour — still within TTL
     still_there = store.get_or_create("abc")
     assert still_there.document_text == "doc"
 
@@ -167,7 +168,7 @@ async def test_chat_node_returns_reply():
         "user_message": "Hello",
     }
 
-    with mock_chat_gemini("Hello! How can I help?", tokens=50):
+    with mock_chat_openai("Hello! How can I help?", tokens=50):
         result = await _chat_node(state)
 
     assert result["reply"] == "Hello! How can I help?"
@@ -178,7 +179,6 @@ async def test_chat_node_returns_reply():
 @pytest.mark.anyio
 async def test_chat_node_includes_history_in_call():
     from app.agents.chat_graph import _chat_node
-    from google.genai import types as genai_types
 
     state: ChatState = {
         "system_prompt": "You are a helpful assistant.",
@@ -190,13 +190,13 @@ async def test_chat_node_includes_history_in_call():
         "user_message": "Can you give me an example?",
     }
 
-    with mock_chat_gemini("Sure! Single quotes are used instead of double quotes.") as mock_client:
+    with mock_chat_openai("Sure! Single quotes are used instead of double quotes.") as mock_client:
         result = await _chat_node(state)
 
-    call_args = mock_client.models.generate_content.call_args
-    contents = call_args.kwargs.get("contents") or call_args.args[0] if call_args.args else call_args.kwargs["contents"]
-    # 2 history messages + 1 current = 3 Content items
-    assert len(contents) == 3
+    call_args = mock_client.chat.completions.create.call_args
+    messages = call_args.kwargs.get("messages") or call_args.args[0]
+    # system + 2 history + 1 current = 4 messages
+    assert len(messages) == 4
 
 
 @pytest.mark.anyio
@@ -210,13 +210,14 @@ async def test_chat_node_includes_document_context_in_system():
         "user_message": "Tell me about the punctuation issues.",
     }
 
-    with mock_chat_gemini("The document has one punctuation issue...") as mock_client:
+    with mock_chat_openai("The document has one punctuation issue...") as mock_client:
         await _chat_node(state)
 
-    call_args = mock_client.models.generate_content.call_args
-    config = call_args.kwargs.get("config")
-    assert "DOCUMENT CONTEXT" in config.system_instruction
-    assert "Category 5" in config.system_instruction
+    call_args = mock_client.chat.completions.create.call_args
+    messages = call_args.kwargs.get("messages") or call_args.args[0]
+    system_content = messages[0]["content"]
+    assert "DOCUMENT CONTEXT" in system_content
+    assert "Category 5" in system_content
 
 
 @pytest.mark.anyio
@@ -230,9 +231,11 @@ async def test_chat_node_fallback_greeting_on_failure():
         "user_message": "Hello",
     }
 
-    with patch("app.agents.chat_graph.genai.Client") as mock_client_class:
+    with patch("app.agents.chat_graph.openai.AsyncOpenAI") as mock_client_class:
         mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = Exception("quota exceeded")
+        mock_client.chat.completions.create = AsyncMock(side_effect=Exception("quota exceeded"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_class.return_value = mock_client
         result = await _chat_node(state)
 
@@ -246,14 +249,16 @@ async def test_chat_node_fallback_error_reply_when_session_has_document():
 
     state: ChatState = {
         "system_prompt": "You are the PSO assistant.",
-        "document_context": "REVIEWED DOCUMENT — 500 words",  # has doc context
+        "document_context": "REVIEWED DOCUMENT — 500 words",
         "message_history": [],
         "user_message": "Explain category 5",
     }
 
-    with patch("app.agents.chat_graph.genai.Client") as mock_client_class:
+    with patch("app.agents.chat_graph.openai.AsyncOpenAI") as mock_client_class:
         mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = Exception("timeout")
+        mock_client.chat.completions.create = AsyncMock(side_effect=Exception("timeout"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_class.return_value = mock_client
         result = await _chat_node(state)
 
@@ -263,8 +268,7 @@ async def test_chat_node_fallback_error_reply_when_session_has_document():
 # ── /chat endpoint integration tests ─────────────────────────────────────────
 
 def test_chat_endpoint_no_document_returns_200(client, auth_headers):
-    """Chat with a session that has no document should return 200 with a reply."""
-    with mock_chat_gemini("Hello! Please upload a document to get started."):
+    with mock_chat_openai("Hello! Please upload a document to get started."):
         r = client.post(
             "/chat",
             json={"message": "Hi", "session_id": "new-session-xyz"},
@@ -277,13 +281,12 @@ def test_chat_endpoint_no_document_returns_200(client, auth_headers):
 
 
 def test_chat_endpoint_retains_session_history(client, auth_headers):
-    """Two chat turns in the same session should build up history."""
     session_id = "history-test-session"
 
-    with mock_chat_gemini("Nice to meet you!"):
+    with mock_chat_openai("Nice to meet you!"):
         client.post("/chat", json={"message": "Hello", "session_id": session_id}, headers=auth_headers)
 
-    with mock_chat_gemini("Category 5 covers punctuation."):
+    with mock_chat_openai("Category 5 covers punctuation."):
         r = client.post(
             "/chat",
             json={"message": "Tell me about Category 5", "session_id": session_id},
@@ -291,20 +294,18 @@ def test_chat_endpoint_retains_session_history(client, auth_headers):
         )
 
     assert r.status_code == 200
-    # Verify history was stored (session has 2 user + 2 assistant messages = 4)
     from app.services.session_store import session_store
     session = session_store.get_or_create(session_id)
     assert len(session.message_history) == 4
 
 
 def test_chat_endpoint_uses_document_context(client, auth_headers):
-    """After a review, the chat should receive document context."""
     from app.services.session_store import session_store
 
     session_id = "doc-context-session"
     session_store.store_review(session_id, "Sample doc text.", "REVIEWED DOCUMENT — 100 words\n• Category 5: MEDIUM")
 
-    with mock_chat_gemini("The document has Category 5 issues.") as mock_client:
+    with mock_chat_openai("The document has Category 5 issues.") as mock_client:
         r = client.post(
             "/chat",
             json={"message": "What were the main issues?", "session_id": session_id},
@@ -312,7 +313,7 @@ def test_chat_endpoint_uses_document_context(client, auth_headers):
         )
 
     assert r.status_code == 200
-    # Verify that the Gemini call received the document context in system_instruction
-    call_args = mock_client.models.generate_content.call_args
-    config = call_args.kwargs.get("config")
-    assert "Category 5" in config.system_instruction
+    call_args = mock_client.chat.completions.create.call_args
+    messages = call_args.kwargs.get("messages") or call_args.args[0]
+    system_content = messages[0]["content"]
+    assert "Category 5" in system_content

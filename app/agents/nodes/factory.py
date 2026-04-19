@@ -1,79 +1,53 @@
-"""Factory for creating LLM category analysis nodes."""
-import json
+"""Factory for creating OpenAI-backed category analysis nodes."""
 import time
 import logging
 import asyncio
 from typing import Any
 
-from google import genai
-from google.genai import types as genai_types
-
 from app.agents.state import ReviewState
-from app.config import get_settings
 from app.models.responses import Finding
+from app.services.llm_client import call_llm_structured, CATEGORY_FINDINGS_SCHEMA
 
 logger = logging.getLogger(__name__)
 
-# Global semaphore to limit concurrent Gemini API calls
-_gemini_semaphore = asyncio.Semaphore(10)
+# Limit concurrent OpenAI calls
+_llm_semaphore = asyncio.Semaphore(10)
 
 
 def create_category_node(category_id: int, category_name: str, prompt_file: str):
-    """Factory function to create an LLM analysis node for a category.
+    """Factory: return an async LangGraph node that analyses one editorial category.
 
     Args:
-        category_id: Category number (1-10)
-        category_name: Display name (e.g., "Tone of Voice")
-        prompt_file: Path to category prompt file (e.g., "app/prompts/categories/01_tone.txt")
-
-    Returns:
-        Async function that analyzes a document for that category
+        category_id: Category number (1–10)
+        category_name: Display name (e.g. 'Tone of Voice')
+        prompt_file: Path to the category-specific prompt file
     """
 
     async def analyze_category(state: ReviewState) -> dict[str, Any]:
-        """Analyze document for a specific category via Gemini."""
-        async with _gemini_semaphore:  # Rate limit: max 10 concurrent calls
+        async with _llm_semaphore:
             start_time = time.monotonic()
 
-            # Load prompts
-            with open("app/prompts/base.txt", "r") as f:
+            with open("app/prompts/base.txt") as f:
                 base_prompt = f.read()
-
-            with open(prompt_file, "r") as f:
+            with open(prompt_file) as f:
                 category_prompt = f.read()
 
             system_prompt = base_prompt + "\n\n" + category_prompt
 
-            # Build user message with document text
-            user_message = f"""Please analyze this document for compliance with Category {category_id} rules.
-
-Document:
----
-{state.get('document_text', '')[:8000]}
----
-
-Provide your assessment as JSON."""
+            user_message = (
+                f"Please analyse this document for compliance with Category {category_id} rules.\n\n"
+                f"Document:\n---\n{state.get('document_text', '')[:8000]}\n---\n\n"
+                f"Provide your assessment as JSON."
+            )
 
             try:
-                # Configure Gemini
-                settings = get_settings()
-                client = genai.Client(api_key=settings.gemini_api_key)
-
-                # Call Gemini with JSON mode
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[system_prompt, user_message],
-                    config=genai_types.GenerateContentConfig(
-                        temperature=0.3,
-                        response_mime_type="application/json",
-                    ),
+                output_data, tokens = await call_llm_structured(
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    response_schema=CATEGORY_FINDINGS_SCHEMA,
+                    schema_name=f"category_{category_id:02d}_findings",
                 )
 
-                # Parse response
-                response_text = response.text
-                output_data = json.loads(response_text)
-
-                # Convert findings
                 findings = [
                     Finding(
                         passage=f["passage"],
@@ -85,13 +59,7 @@ Provide your assessment as JSON."""
 
                 compliant = output_data.get("compliant", True)
                 severity = "none" if compliant else ("high" if len(findings) > 2 else "medium")
-
                 latency_ms = int((time.monotonic() - start_time) * 1000)
-
-                # Extract token count if available
-                tokens = 0
-                if response.usage_metadata:
-                    tokens = response.usage_metadata.total_token_count or 0
 
                 return {
                     f"category_{category_id}": {
@@ -100,7 +68,7 @@ Provide your assessment as JSON."""
                         "severity": severity,
                     },
                     f"category_{category_id}_metadata": {
-                        "model_used": "gemini-2.5-flash",
+                        "model_used": "gpt-4.1-mini",
                         "tokens_used": tokens,
                         "latency_ms": latency_ms,
                         "status": "success",
@@ -108,7 +76,7 @@ Provide your assessment as JSON."""
                 }
 
             except Exception as exc:
-                logger.error(f"Category {category_id} LLM analysis failed: {exc}", exc_info=True)
+                logger.error("Category %d LLM analysis failed: %s", category_id, exc, exc_info=True)
                 latency_ms = int((time.monotonic() - start_time) * 1000)
                 return {
                     f"category_{category_id}": {
@@ -124,5 +92,7 @@ Provide your assessment as JSON."""
                     },
                 }
 
-    analyze_category.__name__ = f"analyze_category_{category_id:02d}_{category_name.lower().replace(' ', '_')}"
+    analyze_category.__name__ = (
+        f"analyze_category_{category_id:02d}_{category_name.lower().replace(' ', '_')}"
+    )
     return analyze_category

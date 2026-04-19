@@ -15,7 +15,7 @@ anyio>=4.8.0
 # LLM and agentic workflows
 langgraph==0.1.17
 langchain-core==0.2.22
-google-genai==1.73.1
+openai>=1.50.0
 
 # Testing
 pytest==8.3.4

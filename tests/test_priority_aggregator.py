@@ -1,7 +1,6 @@
 """Tests for the priority_aggregator node and its integration with review_service."""
-import json
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from contextlib import contextmanager
 
 from app.agents.nodes.priority_aggregator import aggregate_priority, _build_findings_summary
@@ -11,10 +10,9 @@ from app.services.review_service import build_review_response
 from app.services.document_parser import ParsedDocument
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_state_with_findings() -> ReviewState:
-    """ReviewState with findings in categories 1, 5 and compliant elsewhere."""
     state: ReviewState = {"document_text": "Test document."}
     state["category_1"] = {
         "findings": [
@@ -38,16 +36,11 @@ def _make_state_with_findings() -> ReviewState:
 
 
 @contextmanager
-def mock_aggregator_gemini(output_data: dict):
-    """Patch genai.Client used by priority_aggregator."""
-    mock_response = MagicMock()
-    mock_response.text = json.dumps(output_data)
-    mock_response.usage_metadata.total_token_count = 250
-
-    with patch("app.agents.nodes.priority_aggregator.genai.Client") as mock_client_class:
-        mock_client = MagicMock()
-        mock_client.models.generate_content.return_value = mock_response
-        mock_client_class.return_value = mock_client
+def mock_aggregator_llm(output_data: dict, tokens: int = 250):
+    with patch(
+        "app.agents.nodes.priority_aggregator.call_llm_structured",
+        AsyncMock(return_value=(output_data, tokens)),
+    ):
         yield
 
 
@@ -89,7 +82,7 @@ async def test_aggregator_returns_priority_changes():
         "strengths": ["No accessibility issues found.", "Spelling and terminology are correct."],
     }
 
-    with mock_aggregator_gemini(gemini_output):
+    with mock_aggregator_llm(gemini_output):
         result = await aggregate_priority(state)
 
     assert len(result["aggregated_priority_changes"]) == 2
@@ -101,13 +94,13 @@ async def test_aggregator_returns_priority_changes():
 @pytest.mark.anyio
 async def test_aggregator_returns_overall_summary():
     state = _make_state_with_findings()
-    gemini_output = {
+    output = {
         "priority_changes": [{"rank": 1, "category_id": 5, "description": "Fix quotes"}],
         "overall_summary": "The document is mostly compliant with minor punctuation issues.",
         "strengths": ["No accessibility issues."],
     }
 
-    with mock_aggregator_gemini(gemini_output):
+    with mock_aggregator_llm(output):
         result = await aggregate_priority(state)
 
     assert result["aggregated_summary"] == "The document is mostly compliant with minor punctuation issues."
@@ -116,13 +109,13 @@ async def test_aggregator_returns_overall_summary():
 @pytest.mark.anyio
 async def test_aggregator_returns_strengths():
     state = _make_state_with_findings()
-    gemini_output = {
+    output = {
         "priority_changes": [{"rank": 1, "category_id": 1, "description": "Fix tone"}],
         "overall_summary": "Good overall quality.",
         "strengths": ["Accessibility is clear and plain.", "Referencing is complete."],
     }
 
-    with mock_aggregator_gemini(gemini_output):
+    with mock_aggregator_llm(output):
         result = await aggregate_priority(state)
 
     assert len(result["aggregated_strengths"]) == 2
@@ -130,15 +123,13 @@ async def test_aggregator_returns_strengths():
 
 
 @pytest.mark.anyio
-async def test_aggregator_fallback_on_gemini_failure():
-    """When Gemini fails, aggregator returns empty lists (not an exception)."""
+async def test_aggregator_fallback_on_llm_failure():
     state = _make_state_with_findings()
 
-    with patch("app.agents.nodes.priority_aggregator.genai.Client") as mock_client_class:
-        mock_client = MagicMock()
-        mock_client.models.generate_content.side_effect = Exception("API Error")
-        mock_client_class.return_value = mock_client
-
+    with patch(
+        "app.agents.nodes.priority_aggregator.call_llm_structured",
+        AsyncMock(side_effect=Exception("API Error")),
+    ):
         result = await aggregate_priority(state)
 
     assert result["aggregated_priority_changes"] == []
@@ -150,13 +141,9 @@ async def test_aggregator_fallback_on_gemini_failure():
 @pytest.mark.anyio
 async def test_aggregator_records_latency():
     state = _make_state_with_findings()
-    gemini_output = {
-        "priority_changes": [],
-        "overall_summary": "All good.",
-        "strengths": [],
-    }
+    output = {"priority_changes": [], "overall_summary": "All good.", "strengths": []}
 
-    with mock_aggregator_gemini(gemini_output):
+    with mock_aggregator_llm(output):
         result = await aggregate_priority(state)
 
     assert isinstance(result["aggregator_latency_ms"], int)
@@ -178,6 +165,7 @@ def mock_graph_and_runner_with_aggregator(graph_output):
     with patch("app.services.review_service.reviewer_graph") as mock_graph:
         mock_graph.ainvoke = AsyncMock(return_value=graph_output)
         with patch("app.services.review_service.CheckRunner") as mock_runner_class:
+            from unittest.mock import MagicMock
             mock_runner = MagicMock()
             mock_runner.run_all = AsyncMock(return_value={})
             mock_runner_class.return_value = mock_runner
@@ -220,7 +208,6 @@ async def test_review_service_uses_aggregator_priority_changes(sample_doc):
 
 @pytest.mark.anyio
 async def test_review_service_falls_back_when_no_aggregator_output(sample_doc):
-    """When aggregator output is absent, mechanical fallback kicks in."""
     output = _base_graph_output()
     output["category_3"] = {
         "findings": [
@@ -233,7 +220,6 @@ async def test_review_service_falls_back_when_no_aggregator_output(sample_doc):
         "compliant": False,
         "severity": "high",
     }
-    # No aggregated_priority_changes key → should fall back
 
     with mock_graph_and_runner_with_aggregator(output):
         response = await build_review_response("sess-2", sample_doc, 100)
@@ -257,16 +243,14 @@ async def test_review_service_overall_summary_in_response(sample_doc):
 
 @pytest.mark.anyio
 async def test_review_service_strengths_fallback_when_aggregator_empty(sample_doc):
-    """When aggregator returns empty strengths, derive from compliant categories."""
     output = _base_graph_output()
     output["aggregated_priority_changes"] = []
     output["aggregated_summary"] = ""
-    output["aggregated_strengths"] = []  # empty → triggers fallback
+    output["aggregated_strengths"] = []
 
     with mock_graph_and_runner_with_aggregator(output):
         response = await build_review_response("sess-4", sample_doc, 100)
 
-    # All categories are compliant in _base_graph_output, so strengths should be populated
     assert len(response.document_overview.strengths) > 0
 
 
@@ -281,4 +265,4 @@ async def test_review_service_total_tokens_includes_aggregator(sample_doc):
     with mock_graph_and_runner_with_aggregator(output):
         response = await build_review_response("sess-5", sample_doc, 100)
 
-    assert response.metadata.tokens_total == 1000 + 350  # category tokens + aggregator tokens
+    assert response.metadata.tokens_total == 1000 + 350

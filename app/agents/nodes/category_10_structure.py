@@ -1,99 +1,68 @@
-import json
+"""LangGraph node: Category 10 (Structure and Document Conventions) via OpenAI."""
 import time
 import logging
 from typing import Any
 
-from google import genai
-from google.genai import types as genai_types
-
 from app.agents.state import ReviewState
-from app.config import get_settings
 from app.models.responses import Finding
+from app.services.llm_client import call_llm_structured, CATEGORY_FINDINGS_SCHEMA
 
 logger = logging.getLogger(__name__)
 
 
 async def analyze_category_10_structure(state: ReviewState) -> dict[str, Any]:
-    """LangGraph node: Analyze Category 10 (Structure and Document Conventions) via Gemini.
+    """Analyse Category 10 (Structure and Document Conventions).
 
-    Args:
-        state: ReviewState containing document_text
-
-    Returns:
-        Updated state dict with findings, compliant, severity, model_used, tokens_used
+    Returns a flat dict compatible with the legacy test contract:
+        findings, compliant, severity, model_used, tokens_used, category_latency_ms
     """
-    settings = get_settings()
     start_time = time.monotonic()
 
-    # Load prompts
-    with open("app/prompts/base.txt", "r") as f:
+    with open("app/prompts/base.txt") as f:
         base_prompt = f.read()
-
-    with open("app/prompts/categories/10_structure.txt", "r") as f:
+    with open("app/prompts/categories/10_structure.txt") as f:
         category_prompt = f.read()
 
     system_prompt = base_prompt + "\n\n" + category_prompt
 
-    # Build user message
-    user_message = f"""Please analyze this document for compliance with Category 10 rules.
-
-Document:
----
-{state['document_text'][:8000]}  # Limit to 8000 chars to stay under token limits
----
-
-Provide your assessment as JSON."""
+    user_message = (
+        "Please analyse this document for compliance with Category 10 rules.\n\n"
+        f"Document:\n---\n{state['document_text'][:8000]}\n---\n\n"
+        "Provide your assessment as JSON."
+    )
 
     try:
-        # Configure Gemini
-        client = genai.Client(api_key=settings.gemini_api_key)
-
-        # Call Gemini with JSON mode
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[system_prompt, user_message],
-            config=genai_types.GenerateContentConfig(
-                temperature=0.3,
-                response_mime_type="application/json",
-            ),
+        output_data, tokens = await call_llm_structured(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            response_schema=CATEGORY_FINDINGS_SCHEMA,
+            schema_name="category_10_findings",
         )
 
-        # Parse response
-        response_text = response.text
-        output_data = json.loads(response_text)
-
-        # Convert findings to Finding objects (drop rule_reference)
         findings = [
             Finding(
                 passage=f["passage"],
                 issue=f["issue"],
                 suggested_fix=f["suggested_fix"],
             )
-            for f in output_data["findings"]
+            for f in output_data.get("findings", [])
         ]
 
-        compliant = output_data["compliant"]
+        compliant = output_data.get("compliant", True)
         severity = "none" if compliant else ("high" if len(findings) > 2 else "medium")
-
         latency_ms = int((time.monotonic() - start_time) * 1000)
-
-        # Extract token count if available
-        tokens = 0
-        if response.usage_metadata:
-            tokens = response.usage_metadata.total_token_count or 0
 
         return {
             "findings": findings,
             "compliant": compliant,
             "severity": severity,
-            "model_used": "gemini-2.5-flash",
+            "model_used": "gpt-4.1-mini",
             "tokens_used": tokens,
             "category_latency_ms": {10: latency_ms},
         }
 
     except Exception as exc:
-        logger.error(f"Category 10 LLM analysis failed: {exc}", exc_info=True)
-        # Fallback: return empty findings with metadata flag
+        logger.error("Category 10 LLM analysis failed: %s", exc, exc_info=True)
         return {
             "findings": [],
             "compliant": True,
