@@ -166,7 +166,7 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
             "before the next review cycle."
         ),
         metadata=ReviewMetadata(
-            model_used="gemini-2.5-flash + pre-checks",
+            model_used="gpt-4.1-mini + pre-checks",
             tokens_total=total_tokens + aggregator_tokens,
             latency_ms=total_llm_latency,
             processed_at=datetime.now(timezone.utc).isoformat(),

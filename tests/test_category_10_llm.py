@@ -32,11 +32,13 @@ class TestCategory10LLM:
             state: ReviewState = {"document_text": "The policy was implemented by the team."}
             result = await analyze_category_10_structure(state)
 
-        assert result["compliant"] is False
-        assert len(result["findings"]) == 1
-        assert "passive voice" in result["findings"][0].issue.lower()
-        assert result["model_used"] == "gpt-4.1-mini"
-        assert result["tokens_used"] == 150
+        cat = result["category_10"]
+        meta = result["category_10_metadata"]
+        assert cat["compliant"] is False
+        assert len(cat["findings"]) == 1
+        assert "passive voice" in cat["findings"][0].issue.lower()
+        assert meta["model_used"] == "gpt-4.1-mini"
+        assert meta["tokens_used"] == 150
 
     @pytest.mark.anyio
     async def test_compliant_document(self):
@@ -49,9 +51,10 @@ class TestCategory10LLM:
             state: ReviewState = {"document_text": "The team implemented the new training program."}
             result = await analyze_category_10_structure(state)
 
-        assert result["compliant"] is True
-        assert len(result["findings"]) == 0
-        assert result["severity"] == "none"
+        cat = result["category_10"]
+        assert cat["compliant"] is True
+        assert len(cat["findings"]) == 0
+        assert cat["severity"] == "none"
 
     @pytest.mark.anyio
     async def test_api_error_fallback(self):
@@ -62,10 +65,12 @@ class TestCategory10LLM:
             state: ReviewState = {"document_text": "Test document."}
             result = await analyze_category_10_structure(state)
 
-        assert result["compliant"] is True
-        assert len(result["findings"]) == 0
-        assert result["model_used"] == "fallback-hardcoded"
-        assert result["_fallback"] is True
+        cat = result["category_10"]
+        meta = result["category_10_metadata"]
+        assert cat["compliant"] is True
+        assert len(cat["findings"]) == 0
+        assert meta["model_used"] == "fallback-hardcoded"
+        assert meta["status"] == "fallback"
 
     @pytest.mark.anyio
     async def test_multiple_findings(self):
@@ -91,9 +96,10 @@ class TestCategory10LLM:
             state: ReviewState = {"document_text": "The report was written by John."}
             result = await analyze_category_10_structure(state)
 
-        assert result["compliant"] is False
-        assert len(result["findings"]) == 2
-        assert result["severity"] == "medium"
+        cat = result["category_10"]
+        assert cat["compliant"] is False
+        assert len(cat["findings"]) == 2
+        assert cat["severity"] == "medium"
 
     @pytest.mark.anyio
     async def test_missing_document_metadata(self):
@@ -113,5 +119,6 @@ class TestCategory10LLM:
             state: ReviewState = {"document_text": "Policy Document\n\nThis is the content."}
             result = await analyze_category_10_structure(state)
 
-        assert result["compliant"] is False
-        assert any("version" in f.issue.lower() for f in result["findings"])
+        cat = result["category_10"]
+        assert cat["compliant"] is False
+        assert any("version" in f.issue.lower() for f in cat["findings"])

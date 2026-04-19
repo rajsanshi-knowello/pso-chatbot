@@ -60,39 +60,22 @@ def build_review_graph():
 
 
 def _aggregate_findings(state: ReviewState) -> dict:
-    """Aggregate findings from all 10 category nodes.
-
-    LangGraph runs nodes in parallel, but each node writes to state independently.
-    This aggregation step collects and organizes the results.
-    """
-    # Initialize collections if not present
-    if "category_findings" not in state:
-        state["category_findings"] = {}
-    if "category_metadata" not in state:
-        state["category_metadata"] = {}
-
-    # The parallel nodes have already written their findings to state
-    # (via the node return dicts, which LangGraph merges)
-    # We just need to ensure they're properly structured
-
-    # Calculate totals from per-category state keys written by factory nodes
+    """Compute token/latency totals from all 10 parallel category nodes."""
     total_tokens = sum(
         state.get(f"category_{cat_id}_metadata", {}).get("tokens_used", 0)
         for cat_id in range(1, 11)
     )
-
-    # Latency is the max of all category latencies (since they ran in parallel)
     category_latencies = [
         state.get(f"category_{cat_id}_metadata", {}).get("latency_ms", 0)
         for cat_id in range(1, 11)
     ]
     total_latency_ms = max(category_latencies) if category_latencies else 0
 
-    state["total_tokens"] = total_tokens
-    state["total_latency_ms"] = total_latency_ms
-    state["processed_at"] = datetime.now(timezone.utc).isoformat()
-
-    return state
+    return {
+        "total_tokens": total_tokens,
+        "total_latency_ms": total_latency_ms,
+        "processed_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # Singleton compiled graph

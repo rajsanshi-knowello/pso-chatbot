@@ -11,11 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 async def analyze_category_10_structure(state: ReviewState) -> dict[str, Any]:
-    """Analyse Category 10 (Structure and Document Conventions).
-
-    Returns a flat dict compatible with the legacy test contract:
-        findings, compliant, severity, model_used, tokens_used, category_latency_ms
-    """
+    """Analyse Category 10 (Structure and Document Conventions)."""
     start_time = time.monotonic()
 
     with open("app/prompts/base.txt") as f:
@@ -53,22 +49,32 @@ async def analyze_category_10_structure(state: ReviewState) -> dict[str, Any]:
         latency_ms = int((time.monotonic() - start_time) * 1000)
 
         return {
-            "findings": findings,
-            "compliant": compliant,
-            "severity": severity,
-            "model_used": "gpt-4.1-mini",
-            "tokens_used": tokens,
-            "category_latency_ms": {10: latency_ms},
+            "category_10": {
+                "findings": findings,
+                "compliant": compliant,
+                "severity": severity,
+            },
+            "category_10_metadata": {
+                "model_used": "gpt-4.1-mini",
+                "tokens_used": tokens,
+                "latency_ms": latency_ms,
+                "status": "success",
+            },
         }
 
     except Exception as exc:
         logger.error("Category 10 LLM analysis failed: %s", exc, exc_info=True)
+        latency_ms = int((time.monotonic() - start_time) * 1000)
         return {
-            "findings": [],
-            "compliant": True,
-            "severity": "none",
-            "model_used": "fallback-hardcoded",
-            "tokens_used": 0,
-            "category_latency_ms": {10: int((time.monotonic() - start_time) * 1000)},
-            "_fallback": True,
+            "category_10": {
+                "findings": [],
+                "compliant": True,
+                "severity": "none",
+            },
+            "category_10_metadata": {
+                "model_used": "fallback-hardcoded",
+                "tokens_used": 0,
+                "latency_ms": latency_ms,
+                "status": "fallback",
+            },
         }
