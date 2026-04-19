@@ -10,7 +10,7 @@ python-multipart==0.0.20
 
 # Required by starlette.testclient.TestClient (used in tests)
 httpx==0.28.1
-anyio==4.7.0
+anyio>=4.8.0
 
 # LLM and agentic workflows
 langgraph==0.1.17
