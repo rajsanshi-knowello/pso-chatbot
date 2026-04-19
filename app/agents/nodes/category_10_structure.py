@@ -56,7 +56,7 @@ Provide your assessment as JSON."""
     try:
         # Configure Gemini
         genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel("gemini-2.5-pro")
+        model = genai.GenerativeModel("gemini-2.5-flash")
 
         # Define structured output schema
         class Finding10(BaseModel):
@@ -103,7 +103,7 @@ Provide your assessment as JSON."""
             "findings": findings,
             "compliant": compliant,
             "severity": severity,
-            "model_used": "gemini-2.5-pro",
+            "model_used": "gemini-2.5-flash",
             "tokens_used": response.usage.total_token_count,
             "category_latency_ms": {10: latency_ms},
         }

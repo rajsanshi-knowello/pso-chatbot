@@ -43,7 +43,7 @@ class TestCategory10LLM:
             assert result["compliant"] is False
             assert len(result["findings"]) == 1
             assert "passive voice" in result["findings"][0].issue.lower()
-            assert result["model_used"] == "gemini-2.5-pro"
+            assert result["model_used"] == "gemini-2.5-flash"
             assert result["tokens_used"] == 150
 
     @pytest.mark.anyio
