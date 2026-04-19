@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime, timezone
 
+from app.checks.runner import CheckRunner
 from app.models.responses import (
     CategoryResult,
     DocumentOverview,
@@ -137,7 +139,54 @@ _HARDCODED_PRIORITY_CHANGES: list[PriorityChange] = [
 ]
 
 
-def build_review_response(session_id: str, parsed: ParsedDocument, latency_ms: int) -> ReviewResponse:
+async def build_review_response(session_id: str, parsed: ParsedDocument, latency_ms: int) -> ReviewResponse:
+    # Run pre-checks to get real findings for categories 1, 2, 5, 6, 7
+    runner = CheckRunner()
+    findings_by_category = await runner.run_all(parsed.text)
+
+    # Build category results, mixing real findings with hardcoded ones
+    category_results: list[CategoryResult] = []
+
+    for hardcoded in _HARDCODED_CATEGORIES:
+        category_id = hardcoded.category_id
+
+        # Replace findings for checked categories
+        if category_id in findings_by_category:
+            real_findings = findings_by_category[category_id]
+            # Convert from check Finding to response Finding
+            findings = [
+                Finding(
+                    passage=f.passage,
+                    issue=f.issue,
+                    suggested_fix=f.suggested_fix,
+                )
+                for f in real_findings
+            ]
+
+            # Determine compliance and severity
+            compliant = len(findings) == 0
+            if len(findings) == 0:
+                severity = "none"
+            elif len(findings) >= 5:
+                severity = "high"
+            elif len(findings) >= 2:
+                severity = "medium"
+            else:
+                severity = "low"
+
+            category_results.append(
+                CategoryResult(
+                    category_id=category_id,
+                    category_name=hardcoded.category_name,
+                    compliant=compliant,
+                    severity=severity,
+                    findings=findings,
+                )
+            )
+        else:
+            # Keep hardcoded for non-checked categories
+            category_results.append(hardcoded)
+
     return ReviewResponse(
         session_id=session_id,
         document_overview=DocumentOverview(
@@ -150,14 +199,14 @@ def build_review_response(session_id: str, parsed: ParsedDocument, latency_ms: i
                 "Referencing style is complete and well-formatted",
             ],
         ),
-        category_results=_HARDCODED_CATEGORIES,
+        category_results=category_results,
         priority_changes=_HARDCODED_PRIORITY_CHANGES,
         next_steps=(
-            "Address the high-severity accessibility finding first, then resolve punctuation and "
-            "table caption issues before the next review cycle."
+            "Address the high-severity findings first, then resolve lower-priority issues "
+            "before the next review cycle."
         ),
         metadata=ReviewMetadata(
-            model_used="hardcoded-stub",
+            model_used="pre-checks",
             tokens_total=0,
             latency_ms=latency_ms,
             processed_at=datetime.now(timezone.utc).isoformat(),

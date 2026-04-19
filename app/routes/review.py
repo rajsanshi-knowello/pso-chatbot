@@ -17,4 +17,4 @@ async def review(
     start = time.monotonic()
     parsed = await parse_document(body.document_url)
     latency_ms = int((time.monotonic() - start) * 1000)
-    return build_review_response(body.session_id, parsed, latency_ms)
+    return await build_review_response(body.session_id, parsed, latency_ms)

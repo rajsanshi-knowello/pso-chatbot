@@ -22,4 +22,4 @@ async def review_upload(
         content_type=file.content_type or "",
     )
     latency_ms = int((time.monotonic() - start) * 1000)
-    return build_review_response(session_id, parsed, latency_ms)
+    return await build_review_response(session_id, parsed, latency_ms)
