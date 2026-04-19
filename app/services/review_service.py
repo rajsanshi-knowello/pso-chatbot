@@ -1,6 +1,9 @@
 import asyncio
+import logging
 from datetime import datetime, timezone
 
+from app.agents.graph import reviewer_graph
+from app.agents.state import ReviewState
 from app.checks.runner import CheckRunner
 from app.models.responses import (
     CategoryResult,
@@ -11,6 +14,8 @@ from app.models.responses import (
     ReviewResponse,
 )
 from app.services.document_parser import ParsedDocument
+
+logger = logging.getLogger(__name__)
 
 _HARDCODED_CATEGORIES: list[CategoryResult] = [
     CategoryResult(
@@ -144,13 +149,36 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
     runner = CheckRunner()
     findings_by_category = await runner.run_all(parsed.text)
 
+    # Run LLM for Category 10 (Structure and Document Conventions)
+    llm_tokens = 0
+    category_10_latency = 0
+    category_10_fallback = False
+    try:
+        logger.info("Invoking LLM for Category 10 analysis")
+        state: ReviewState = {
+            "document_text": parsed.text,
+            "category_id": 10,
+            "category_name": "Structure and Document Conventions",
+        }
+        output = reviewer_graph.invoke(state)
+        findings_by_category[10] = output.get("findings", [])
+        llm_tokens = output.get("tokens_used", 0)
+        category_10_latency = output.get("category_latency_ms", {}).get(10, 0)
+        category_10_fallback = output.get("_fallback", False)
+        if category_10_fallback:
+            logger.warning("Category 10 LLM analysis fell back to hardcoded")
+    except Exception as exc:
+        logger.error(f"Category 10 LLM invocation failed: {exc}", exc_info=True)
+        category_10_fallback = True
+        # Don't add findings_by_category[10] — let it use hardcoded below
+
     # Build category results, mixing real findings with hardcoded ones
     category_results: list[CategoryResult] = []
 
     for hardcoded in _HARDCODED_CATEGORIES:
         category_id = hardcoded.category_id
 
-        # Replace findings for checked categories
+        # Replace findings for checked/analyzed categories
         if category_id in findings_by_category:
             real_findings = findings_by_category[category_id]
             # Convert from check Finding to response Finding
@@ -206,8 +234,8 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
             "before the next review cycle."
         ),
         metadata=ReviewMetadata(
-            model_used="pre-checks",
-            tokens_total=0,
+            model_used="pre-checks + llm" if not category_10_fallback else "pre-checks + fallback",
+            tokens_total=llm_tokens,
             latency_ms=latency_ms,
             processed_at=datetime.now(timezone.utc).isoformat(),
         ),

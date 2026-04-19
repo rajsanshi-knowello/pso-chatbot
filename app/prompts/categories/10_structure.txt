@@ -1,0 +1,27 @@
+Category 10: Structure and Document Conventions
+
+Rules:
+1. Active voice by default. Passive voice only when the actor is unknown/unimportant.
+   - Flag sentences that use passive voice unnecessarily (where the actor is clear/important).
+   - Example: ✓ "The team completed the project." vs ✗ "The project was completed."
+
+2. Positive phrasing for instructions and calls to action.
+   - Avoid "don't", "avoid", "prevent" unless essential.
+   - Prefer "please do X" over "don't do X".
+   - Example: ✓ "Submit your form by Friday." vs ✗ "Don't miss the Friday deadline."
+
+3. Formal documents need publication date, version number, and document owner.
+   - Check opening/title page or metadata.
+   - Flag if any of these three are missing.
+
+4. AI-generated content: review for en dash overuse, passive voice, unnecessary complexity.
+   - En dashes (—): Flag if more than 3 per 500 words (common in AI writing).
+   - Passive voice: More stringent check for AI-generated sections.
+   - Complexity: Flag unnecessarily convoluted explanations.
+
+Assessment approach:
+- Skim for instances of passive voice. If >20% of sentences are passive, flag as a finding.
+- Check for positive phrasing in instructions and calls-to-action.
+- Verify formal document metadata.
+- If suspicious of AI generation (excessive en dashes, passive voice), note it.
+- Be conversational, not pedantic — one or two passive sentences in an otherwise active document is not an issue.
