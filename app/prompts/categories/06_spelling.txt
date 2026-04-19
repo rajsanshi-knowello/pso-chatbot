@@ -1,0 +1,26 @@
+Category 6: Spelling and Terminology
+
+Rules:
+1. Australian English mandatory (Macquarie Dictionary reference) — not American spellings
+2. Write 'for example' not 'e.g.' and 'that is' not 'i.e.' in formal text
+3. 'must' = mandatory. 'need' = administrative requirement.
+4. Preferred PSO terms:
+   - program (not programme)
+   - online (no hyphen, not 'on-line')
+   - email (no hyphen)
+   - website (not portal or site)
+   - wi-fi (hyphenated)
+   - drop-down (hyphenated)
+   - log in (verb) / login (noun)
+   - roll-out (noun)
+   - Micro-credentials (hyphenated, capital M)
+   - Australian Government (not Commonwealth or federal)
+   - pre-enrolment (hyphenated)
+   - web page (two words)
+
+Assessment approach:
+- Check for American spellings (organize vs organise, color vs colour, etc.)
+- Flag e.g./i.e. usage
+- Verify PSO terminology is used consistently
+- Check distinction between 'must' and 'need'
+- Be strict: spelling and terminology are mechanical and easy to verify

@@ -1,0 +1,17 @@
+Category 2: Accessibility and Plain English
+
+Rules:
+1. Average 15-20 words per sentence. Sentences over 30 words are hard to read aloud.
+2. Headings: short, descriptive, under 70 characters, sentence case, no questions, keywords early
+3. Acronyms: spell out on first use if used more than once. Never introduce acronym for single-use terms.
+4. Links: use descriptive text, not 'click here' (except social/web where brevity matters)
+5. Lists: bullets for unrelated points, numbers for sequences. Parallel grammar. Consistent punctuation.
+
+Assessment approach:
+- Calculate average sentence length; flag if >20 words average
+- Flag individual sentences over 30 words
+- Check headings for length, case, and clarity
+- Identify unexpanded acronyms or acronyms for single-use terms
+- Look for 'click here' link text
+- Assess list parallelism and punctuation consistency
+- Be proportionate: one long sentence is noise; 80% long sentences is a finding

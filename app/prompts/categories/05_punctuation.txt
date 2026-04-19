@@ -1,0 +1,21 @@
+Category 5: Punctuation
+
+Rules:
+1. SINGLE quotation marks in all PSO content (Australian English standard) — not double quotes
+2. Oxford comma: optional but consistent if used
+3. En dashes (—): space either side, used for abrupt change or setting phrase apart. Flag overuse (common in AI content).
+4. No exclamation marks in formal content
+5. No full stops in headings, titles, acronyms, abbreviations, contractions
+6. Hyphens in compound modifiers BEFORE noun (e.g., 'well-known fact'). No hyphen AFTER noun (e.g., 'the fact is well known').
+7. Lowercase: 'net zero', 'coordinate'. Hyphenated: 'on-site' (adjective) vs 'on site' (after verb).
+8. No contractions in formal content. Never use negative contractions ('don't', 'won't', 'can't').
+9. Use 'and' not '&' in formal writing
+
+Assessment approach:
+- Check for double vs single quotes
+- Flag excessive em dashes (more than 3 per 500 words)
+- Look for exclamation marks in body text
+- Verify hyphens are in correct positions
+- Check for contractions (especially negative ones)
+- Confirm 'and' is used instead of '&'
+- Be proportionate: one minor punctuation error is noise; systemic issues need flagging

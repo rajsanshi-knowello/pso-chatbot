@@ -1,0 +1,14 @@
+Category 4: Headings and Capitalisation
+
+Rules:
+1. Sentence case DEFAULT for all headings, subheadings, body text, captions (only first word capitalised, unless proper nouns)
+2. Title case ONLY for: formal publication titles on covers, branded program names, approved presentation templates
+3. Don't skip heading levels (e.g., don't jump from H1 to H3)
+4. Capitalise proper nouns. Lowercase generic references. Minimal capitalisation throughout.
+
+Assessment approach:
+- Check all headings and titles for sentence case vs title case (flag title case outside the allowed exceptions)
+- Verify heading hierarchy is consistent (no skipped levels)
+- Check for over-capitalisation of generic terms (e.g., 'Program' should be 'program' unless it's a proper name)
+- Assess whether capital letters are used only for proper nouns
+- Be strict: capitalisation rules are mechanical and easy to fix

@@ -1,0 +1,18 @@
+Category 9: Tables and Figures
+
+Rules:
+1. Sequential numbering: Table 1, Figure 1, etc. (not 'Table A', 'Figure i')
+2. Title ABOVE table/figure, source BELOW
+3. Titles in sentence case. Include relevant timeframe if applicable.
+4. Source format: 'Source: Author Year.' or 'Source: Adapted from Author Year.'
+5. Refer to tables/figures by number in text ('as shown in Table 3') not 'the table below' or 'the figure above'
+6. Avoid merged cells (accessibility issue). Use clear column headings. No colour-only meaning.
+
+Assessment approach:
+- Check sequential numbering (no gaps, no letters or Roman numerals)
+- Verify title is above, source is below
+- Check title format (sentence case, includes timeframe if needed)
+- Verify source format is consistent
+- Check text references use numbers ('Table 3') not position ('below')
+- Flag merged cells, unclear headings, or colour-only meaning
+- Be proportionate: one missing source is an error; systemic issues need flagging

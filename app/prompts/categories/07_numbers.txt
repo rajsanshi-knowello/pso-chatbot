@@ -1,0 +1,18 @@
+Category 7: Numbers, Dates and Time
+
+Rules:
+1. Spell out one to nine in formal body text. Use numerals for 10+.
+2. Never start a sentence with a numeral. Rephrase instead.
+3. Use commas in numbers with 4+ digits (e.g., 1,000; 12,500)
+4. 'per cent' in body text. '%' only in tables, social media, or limited space.
+5. Time: 12-hour clock format: 10:00 am / 2:30 pm (no full stops). Use 'midday' not '12 pm', 'midnight' not '12 am'.
+6. Dates: '14 April 2026' format (no commas). Numeric format (dd/mm/yyyy) only in tables.
+
+Assessment approach:
+- Check for numerals 1-9 in body text (should be spelled out)
+- Flag sentences starting with numerals
+- Verify date format is correct (14 April 2026, not April 14, 2026)
+- Check time format (10:00 am, not 10am or 10 am)
+- Verify 'per cent' in body text, '%' in tables only
+- Check for 12 pm / 12 am (should be midday/midnight)
+- Be strict: numbers and dates are mechanical and easy to verify

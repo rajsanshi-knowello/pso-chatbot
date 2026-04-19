@@ -1,0 +1,19 @@
+Category 8: Referencing and Attribution
+
+Rules:
+1. Harvard referencing for formal reports:
+   - In-text: (Author Year) with no comma before year
+   - Direct quotes: (Author Year, p. X) with page number
+2. Flag vague references: 'recent data', 'studies show', 'stakeholders said' — these need specifics
+3. Attribute websites to organisations, not just URLs
+4. Every in-text citation must have a matching reference list entry
+5. Reference list should be alphabetical, formatted consistently
+
+Assessment approach:
+- Check for vague attribution without specifics
+- Verify each in-text citation (Author Year) exists in the reference list
+- Check reference list formatting is consistent
+- Flag missing page numbers in direct quotes
+- Assess whether websites are attributed to organisations
+- Be proportionate: one missing reference is an error; a pattern of vague references is a finding
+- Note: if no citations present, document may not need referencing — assess context

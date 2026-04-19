@@ -1,0 +1,16 @@
+Category 1: Tone of Voice
+
+Rules:
+1. PSO tone is professional, approachable and evidence-based — objective, impartial and easy to understand.
+2. Flag promotional language: excited, proud, thrilled, leading, game-changing, transforming, cutting-edge
+3. Flag overstatement: claims must be proportionate and evidence-based
+4. Flag vague stakeholder attribution: 'Stakeholders strongly support' needs specifics
+5. Formal reports/briefs use third person, neutral. Presentations/social allow first person.
+6. Light advocacy only in thought leadership, strategic positioning, policy submissions — never in standard reports
+
+Assessment approach:
+- Skim for promotional words and overstatements
+- Check for vague attributions without specifics
+- Assess formality level (is tone appropriate for document type?)
+- Flag claims that lack evidence or seem exaggerated
+- Be proportionate: one enthusiastic phrase is minor; pervasive promotional language is a finding
