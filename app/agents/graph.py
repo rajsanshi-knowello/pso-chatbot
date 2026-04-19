@@ -6,6 +6,7 @@ from app.agents.state import ReviewState
 from app.agents.nodes.factory import create_category_node
 
 
+
 # Category definitions
 CATEGORIES = {
     1: ("Tone of Voice", "app/prompts/categories/01_tone.txt"),
@@ -21,6 +22,12 @@ CATEGORIES = {
 }
 
 
+def _router_to_categories(state: ReviewState):
+    """Route from START to all category nodes in parallel."""
+    # Return a list of node names for parallel execution
+    return [f"category_{cat_id:02d}" for cat_id in range(1, 11)]
+
+
 def build_review_graph():
     """Build LangGraph for parallel 10-category analysis.
 
@@ -34,10 +41,11 @@ def build_review_graph():
         node_name = f"category_{cat_id:02d}"
         node_func = create_category_node(cat_id, cat_name, prompt_file)
         graph.add_node(node_name, node_func)
-        # All nodes connect from START for parallel execution
-        graph.add_edge(START, node_name)
         # All nodes connect to aggregation for fan-in
         graph.add_edge(node_name, "aggregate")
+
+    # Add router from START that sends to all category nodes in parallel
+    graph.add_conditional_edges(START, _router_to_categories)
 
     # Aggregation node: collect results from all 10 categories
     graph.add_node("aggregate", _aggregate_findings)
