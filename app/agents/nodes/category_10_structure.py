@@ -4,22 +4,12 @@ import logging
 from typing import Any
 
 import google.generativeai as genai
-from google.api_core import retry
-from pydantic import BaseModel, ValidationError
 
 from app.agents.state import ReviewState
 from app.config import get_settings
 from app.models.responses import Finding
 
 logger = logging.getLogger(__name__)
-
-
-class Category10Output(BaseModel):
-    """Structured output from Category 10 LLM analysis."""
-
-    compliant: bool
-    findings: list[Finding]
-    reasoning: str
 
 
 async def analyze_category_10_structure(state: ReviewState) -> dict[str, Any]:
@@ -58,25 +48,12 @@ Provide your assessment as JSON."""
         genai.configure(api_key=settings.gemini_api_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
 
-        # Define structured output schema
-        class Finding10(BaseModel):
-            passage: str
-            issue: str
-            suggested_fix: str
-            rule_reference: str
-
-        class Category10Response(BaseModel):
-            compliant: bool
-            findings: list[Finding10]
-            reasoning: str
-
-        # Call Gemini with structured output (using response_schema)
+        # Call Gemini with JSON mode (no schema - just instructions in prompt)
         response = model.generate_content(
             [system_prompt, user_message],
             generation_config={
                 "temperature": 0.3,
                 "response_mime_type": "application/json",
-                "response_schema": Category10Response,
             },
         )
 
