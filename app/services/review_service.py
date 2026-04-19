@@ -155,6 +155,9 @@ async def build_review_response(session_id: str, parsed: ParsedDocument, latency
             tokens_total=total_tokens,
             latency_ms=total_llm_latency,
             processed_at=datetime.now(timezone.utc).isoformat(),
+            tokens_by_category=tokens_by_category,
+            latency_by_category=latency_by_category,
+            category_status=category_status,
         ),
     )
 

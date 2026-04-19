@@ -48,6 +48,9 @@ class ReviewMetadata(BaseModel):
     tokens_total: int
     latency_ms: int
     processed_at: str
+    tokens_by_category: dict[str, int] = {}
+    latency_by_category: dict[str, int] = {}
+    category_status: dict[str, str] = {}
 
 
 class ReviewResponse(BaseModel):

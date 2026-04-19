@@ -70,16 +70,16 @@ def _aggregate_findings(state: ReviewState) -> dict:
     # (via the node return dicts, which LangGraph merges)
     # We just need to ensure they're properly structured
 
-    # Calculate totals
+    # Calculate totals from per-category state keys written by factory nodes
     total_tokens = sum(
-        meta.get("tokens_used", 0)
-        for meta in state.get("category_metadata", {}).values()
+        state.get(f"category_{cat_id}_metadata", {}).get("tokens_used", 0)
+        for cat_id in range(1, 11)
     )
 
     # Latency is the max of all category latencies (since they ran in parallel)
     category_latencies = [
-        meta.get("category_latency_ms", {}).get(cat_id, 0)
-        for cat_id, meta in enumerate(state.get("category_metadata", {}).values(), 1)
+        state.get(f"category_{cat_id}_metadata", {}).get("latency_ms", 0)
+        for cat_id in range(1, 11)
     ]
     total_latency_ms = max(category_latencies) if category_latencies else 0
 

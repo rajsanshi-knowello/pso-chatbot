@@ -5,7 +5,8 @@ import logging
 import asyncio
 from typing import Any
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 
 from app.agents.state import ReviewState
 from app.config import get_settings
@@ -56,16 +57,16 @@ Provide your assessment as JSON."""
             try:
                 # Configure Gemini
                 settings = get_settings()
-                genai.configure(api_key=settings.gemini_api_key)
-                model = genai.GenerativeModel("gemini-2.5-flash")
+                client = genai.Client(api_key=settings.gemini_api_key)
 
                 # Call Gemini with JSON mode
-                response = model.generate_content(
-                    [system_prompt, user_message],
-                    generation_config={
-                        "temperature": 0.3,
-                        "response_mime_type": "application/json",
-                    },
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[system_prompt, user_message],
+                    config=genai_types.GenerateContentConfig(
+                        temperature=0.3,
+                        response_mime_type="application/json",
+                    ),
                 )
 
                 # Parse response
@@ -89,8 +90,8 @@ Provide your assessment as JSON."""
 
                 # Extract token count if available
                 tokens = 0
-                if hasattr(response, "usage") and response.usage:
-                    tokens = response.usage.total_token_count
+                if response.usage_metadata:
+                    tokens = response.usage_metadata.total_token_count or 0
 
                 return {
                     f"category_{category_id}": {

@@ -1,17 +1,15 @@
 import json
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 from app.agents.nodes.category_10_structure import analyze_category_10_structure
 from app.agents.state import ReviewState
-from app.models.responses import Finding
 
 
 class TestCategory10LLM:
     @pytest.mark.anyio
     async def test_passive_voice_violations(self):
         """Test detection of passive voice violations."""
-        # Mock Gemini response with passive voice findings
         mock_response = MagicMock()
         mock_response.text = json.dumps({
             "compliant": False,
@@ -25,12 +23,12 @@ class TestCategory10LLM:
             ],
             "reasoning": "Document uses passive voice unnecessarily in several places."
         })
-        mock_response.usage.total_token_count = 150
+        mock_response.usage_metadata.total_token_count = 150
 
-        with patch("google.generativeai.GenerativeModel") as mock_model_class:
-            mock_model = MagicMock()
-            mock_model.generate_content.return_value = mock_response
-            mock_model_class.return_value = mock_model
+        with patch("app.agents.nodes.category_10_structure.genai.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_class.return_value = mock_client
 
             state: ReviewState = {
                 "document_text": "The policy was implemented by the team.",
@@ -55,12 +53,12 @@ class TestCategory10LLM:
             "findings": [],
             "reasoning": "Document uses active voice throughout and follows all structure conventions."
         })
-        mock_response.usage.total_token_count = 120
+        mock_response.usage_metadata.total_token_count = 120
 
-        with patch("google.generativeai.GenerativeModel") as mock_model_class:
-            mock_model = MagicMock()
-            mock_model.generate_content.return_value = mock_response
-            mock_model_class.return_value = mock_model
+        with patch("app.agents.nodes.category_10_structure.genai.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_class.return_value = mock_client
 
             state: ReviewState = {
                 "document_text": "The team implemented the new training program.",
@@ -77,10 +75,10 @@ class TestCategory10LLM:
     @pytest.mark.anyio
     async def test_api_error_fallback(self):
         """Test fallback to hardcoded when Gemini API fails."""
-        with patch("google.generativeai.GenerativeModel") as mock_model_class:
-            mock_model = MagicMock()
-            mock_model.generate_content.side_effect = Exception("API Error")
-            mock_model_class.return_value = mock_model
+        with patch("app.agents.nodes.category_10_structure.genai.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.side_effect = Exception("API Error")
+            mock_client_class.return_value = mock_client
 
             state: ReviewState = {
                 "document_text": "Test document.",
@@ -90,7 +88,6 @@ class TestCategory10LLM:
 
             result = await analyze_category_10_structure(state)
 
-            # Should fallback gracefully
             assert result["compliant"] is True
             assert len(result["findings"]) == 0
             assert result["model_used"] == "fallback-hardcoded"
@@ -118,12 +115,12 @@ class TestCategory10LLM:
             ],
             "reasoning": "Multiple style issues found."
         })
-        mock_response.usage.total_token_count = 200
+        mock_response.usage_metadata.total_token_count = 200
 
-        with patch("google.generativeai.GenerativeModel") as mock_model_class:
-            mock_model = MagicMock()
-            mock_model.generate_content.return_value = mock_response
-            mock_model_class.return_value = mock_model
+        with patch("app.agents.nodes.category_10_structure.genai.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_class.return_value = mock_client
 
             state: ReviewState = {
                 "document_text": "The report was written by John. Don't forget to submit your form.",
@@ -153,12 +150,12 @@ class TestCategory10LLM:
             ],
             "reasoning": "Critical metadata missing from formal document."
         })
-        mock_response.usage.total_token_count = 180
+        mock_response.usage_metadata.total_token_count = 180
 
-        with patch("google.generativeai.GenerativeModel") as mock_model_class:
-            mock_model = MagicMock()
-            mock_model.generate_content.return_value = mock_response
-            mock_model_class.return_value = mock_model
+        with patch("app.agents.nodes.category_10_structure.genai.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.models.generate_content.return_value = mock_response
+            mock_client_class.return_value = mock_client
 
             state: ReviewState = {
                 "document_text": "Policy Document\n\nThis is the content.",

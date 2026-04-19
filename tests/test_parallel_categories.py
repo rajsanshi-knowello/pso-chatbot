@@ -416,3 +416,61 @@ async def test_empty_precheck_findings(sample_parsed_document, mock_graph_output
     for cat_id in [1, 2, 3, 4, 5]:
         cat = next(c for c in response.category_results if c.category_id == cat_id)
         assert len(cat.findings) >= 1
+
+
+@pytest.mark.anyio
+async def test_one_category_fails_others_succeed(sample_parsed_document):
+    """When one category node fails (fallback), the other 9 should still return results."""
+    output = {}
+
+    # Categories 1-9: success with findings
+    for cat_id in range(1, 10):
+        output[f"category_{cat_id}"] = {
+            "findings": [Finding(passage="text", issue=f"Issue {cat_id}", suggested_fix="fix")],
+            "compliant": False,
+            "severity": "low",
+        }
+        output[f"category_{cat_id}_metadata"] = {
+            "tokens_used": 150,
+            "latency_ms": 2000,
+            "status": "success",
+        }
+
+    # Category 10: fallback (simulates LLM failure)
+    output["category_10"] = {
+        "findings": [],
+        "compliant": True,
+        "severity": "none",
+    }
+    output["category_10_metadata"] = {
+        "tokens_used": 0,
+        "latency_ms": 500,
+        "status": "fallback",
+    }
+
+    output["total_tokens"] = 1350
+    output["total_latency_ms"] = 2000
+
+    with mock_graph_and_runner(output):
+        response = await build_review_response("test-session", sample_parsed_document, 100)
+
+    # All 10 categories should still appear
+    assert len(response.category_results) == 10
+
+    # Categories 1-9 should have findings (success)
+    for cat_id in range(1, 10):
+        cat = next(c for c in response.category_results if c.category_id == cat_id)
+        assert len(cat.findings) >= 1
+        assert cat.compliant is False
+
+    # Category 10 should be empty but present (fallback)
+    cat10 = next(c for c in response.category_results if c.category_id == 10)
+    assert cat10.findings == []
+    assert cat10.compliant is True
+
+    # Metadata should record fallback status for category 10
+    assert response.metadata.category_status.get("10") == "fallback"
+
+    # Successful categories should have "success" status in metadata
+    for cat_id in range(1, 10):
+        assert response.metadata.category_status.get(str(cat_id)) == "success"
