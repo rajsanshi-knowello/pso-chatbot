@@ -25,8 +25,7 @@ CATEGORIES = {
 
 def _router_to_categories(state: ReviewState):
     """Route from START to all category nodes in parallel."""
-    # Return a list of node names for parallel execution
-    return [f"category_{cat_id:02d}" for cat_id in range(1, 11)]
+    return [f"analyze_cat_{cat_id}" for cat_id in range(1, 11)]
 
 
 def build_review_graph():
@@ -39,10 +38,9 @@ def build_review_graph():
 
     # Create and add all 10 category nodes
     for cat_id, (cat_name, prompt_file) in CATEGORIES.items():
-        node_name = f"category_{cat_id:02d}"
+        node_name = f"analyze_cat_{cat_id}"
         node_func = create_category_node(cat_id, cat_name, prompt_file)
         graph.add_node(node_name, node_func)
-        # All nodes fan-in to aggregate
         graph.add_edge(node_name, "aggregate")
 
     # Add router from START that sends to all category nodes in parallel
